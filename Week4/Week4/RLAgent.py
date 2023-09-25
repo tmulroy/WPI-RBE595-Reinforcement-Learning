@@ -11,7 +11,7 @@ class RLAgent:
         self.__delta = 0
         self.world = world
         self.state_values = np.zeros((self.world.grid.shape[0], self.world.grid.shape[1]))
-        self.env_probabilities = {
+        self.__env_probabilities = {
             'north': 1,
             'east': 1,
             'south': 1,
@@ -51,44 +51,47 @@ class RLAgent:
         self.__policy = new_policy
         pass
 
+    @property
+    def env_probabilities(self):
+        return self.__env_probabilities
+
     def initialize(self):
         '''
-        Sets initial agent policy to all 8 actions
+        Sets initial agent policy
+        Sets initial state values to 0
         :return: policy,s_vals: dict{(x,y)} = [all 8 action], dict{(x,y)} = 0
         '''
         policy = {}
         s_vals = {}
         it = np.nditer(self.world.grid, flags=['multi_index'])
+        rows,cols = self.world.grid.shape
+
+        # Set each State Value to 0
+        # Set policy to map every state to all actions
         for state in it:
             key = (it.multi_index[0], it.multi_index[1])
             policy_value = self.actions
             policy[key] = policy_value
             s_vals[key] = 0
-        # print(f's_vals: {s_vals}')
 
-        # Need to account for world borders in policy
-        rows,cols = self.world.grid.shape
+        # Account for World Borders in Policy
         for key,value in policy.items():
             if key[0] == 0 and 0 < key[1] < cols-1: # Top Row
                 policy[key] = ['east','south','west','south-east','south-west']
-            elif key[0] == rows-1: # Bottom Row
+            elif key[0] == rows-1 and 0 < key[1] < cols-1: # Bottom Row
                 policy[key] = ['north','east','west','north-east','north-west']
             elif key[1] == 0 and 0 < key[0] < rows-1: # Leftmost Column
                 policy[key] = ['north','east','south','north-east','south-east']
-            elif key[1] == cols-1: # Rightmost Column
+            elif key[1] == cols-1 and 0 < key[0] < rows-1: # Rightmost Column
                 policy[key] = ['north','south','west','north-west','south-west']
             else:
                 pass
 
-        # Handle Corners
-        # Top Left
-        policy[(0,0)] = ['east','south-east','south']
-        # Top Right
-        policy[(0,cols-1)] = ['south','south-west','west']
-        # Bottom Left
-        policy[(rows-1, 0)] = ['north','north-east','east']
-        # Bottom Right
-        policy[(rows-1, cols-1)] = ['north','west','north-west']
+        # Account for World Corners in Policy
+        policy[(0,0)] = ['east','south-east','south']  # Top Left
+        policy[(0,cols-1)] = ['south','south-west','west']  # Top Right
+        policy[(rows-1, 0)] = ['north','north-east','east']  # Bottom Left
+        policy[(rows-1, cols-1)] = ['north','west','north-west']  # Bottom Right
 
         return policy,s_vals
 
@@ -98,68 +101,52 @@ class RLAgent:
         :return:
         '''
         it = np.nditer(self.state_values, flags=['multi_index'])
-        v = self.state_values
+        next_state_val = 0
+        future_rewards = {}
 
         # Iterate through every state in state_values
-        for s in it:
-            # Get policy for each state to get s_primes
-            s_primes_val = []
-            s_primes_reward = []
+        for state in it:
+            s_primes_state_vals = {}
+            state_idx = (it.multi_index[0], it.multi_index[1])
+            print(f'state: {state_idx}')
+            # Variables we need to solve Bellman Optimal Value Equation:
+            curr_state_val = next_state_val
 
             # Get actions associated with policy for that state
-            s_actions = self.policy[(it.multi_index[0], it.multi_index[1])]
+            state_actions = self.policy[state_idx]
 
             # Map string actions to grid coordinates (dict keys)
-            north = (it.multi_index[0]-1, it.multi_index[1])
-            east = (it.multi_index[0], it.multi_index[1]+1)
-            south = (it.multi_index[0]+1, it.multi_index[1])
-            west = (it.multi_index[0], it.multi_index[1]-1)
-            north_east = (it.multi_index[0]-1, it.multi_index[1]+1)
-            south_east = (it.multi_index[0]+1, it.multi_index[1]+1)
-            south_west = (it.multi_index[0]+1, it.multi_index[1]-1)
-            north_west = (it.multi_index[0]-1, it.multi_index[1]-1)
+            coords = {
+                'north': (it.multi_index[0]-1, it.multi_index[1]),
+                'east': (it.multi_index[0], it.multi_index[1]+1),
+                'south': (it.multi_index[0]+1, it.multi_index[1]),
+                'west': (it.multi_index[0], it.multi_index[1]-1),
+                'north-east': (it.multi_index[0]-1, it.multi_index[1]+1),
+                'south-east': (it.multi_index[0]+1, it.multi_index[1]+1),
+                'south-west': (it.multi_index[0]+1, it.multi_index[1]-1),
+                'north-west': (it.multi_index[0]-1, it.multi_index[1]-1)
+
+            }
 
             # Get s' value and reward
-            print(f'state: ({it.multi_index[0]},{it.multi_index[1]})')
-            for action in s_actions:
+            sum = 0
+            for action in state_actions:
+                # Sum up r+gamma*V(s')
+                # sum += 1*(immediate_reward[state_idx] + self.gamma*self.state_values_dict[action])
+                immediate_reward = self.world.rewards[coords[action]]
+                print(f'action: {action}, reward: {immediate_reward}')
+                s_primes_state_vals[action] = self.env_probabilities[action] * (immediate_reward + self.gamma*self.state_values_dict[coords[action]])
 
-                if action == 'north':
-                    s_primes_val.append(self.state_values_dict[north])
-                    pass
-                elif action == 'east':
-                    s_primes_val.append(self.state_values_dict[east])
-                    pass
-                elif action == 'south':
-                    s_primes_val.append(self.state_values_dict[south])
-                    pass
-                elif action == 'west':
-                    s_primes_val.append(self.state_values_dict[west])
-                    pass
-                elif action == 'north-east':
-                    s_primes_val.append(self.state_values_dict[north_east])
-                    pass
-                elif action == 'south-east':
-                    s_primes_val.append(self.state_values_dict[south_east])
-                    pass
-                elif action == 'south-west':
-                    s_primes_val.append(self.state_values_dict[south_west])
-                    pass
-                elif action == 'north-west':
-                    s_primes_val.append(self.state_values_dict[north_west])
-                    pass
-                else:
-                    pass
-
-
-            # print(f's_primes: {s_primes_val}')
+            # Calculate next_state_value
+            print(f's_prime: {s_primes_state_vals}\n')
             # next_state_val = self.reward + self.gamma*
-
+            # future_rewards[]
 
 
 
 if __name__ == '__main__':
     world = World()
-    world.show()
+    # world.show()
+    print(world.rewards)
     agent = RLAgent(world)
     agent.value_iteration()
-    print(agent.policy)
