@@ -27,7 +27,7 @@ class World:
         rewards_arr = np.reshape(rewards_arr, (15,51))
         rewards_arr[self.__goal[0], self.__goal[1]] = 100.00
         self.__rewards_arr = rewards_arr
-
+        self.__state_values = {}
         # Generate Rewards as a dict {}
         rewards = {}
         for y in range(0,self.__grid.shape[0]):
@@ -60,13 +60,28 @@ class World:
     def grid(self):
         return self.__grid
 
-    def show(self):
+    @property
+    def state_values(self):
+        return self.__state_values
+
+    @state_values.setter
+    def state_values(self, new_state_values):
+        self.__state_values = new_state_values
+
+    def show(self, values):
         fig, ax = plt.subplots()
         ax.set_title('World')
         plt.tick_params(left=False, right=False, labelleft=False,
                         labelbottom=False, bottom=False)
-        im = ax.imshow(self.rewards_arr)
+        im = ax.imshow(values)
         plt.show(block=False)
+
+    def convert_dict_to_arr(self, x):
+        # for key,value in x:
+        pass
+
+
+    # def show_values(self):
 
     def show_rewards_arr(self):
         fig, ax = plt.subplots()

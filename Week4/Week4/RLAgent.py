@@ -1,5 +1,6 @@
 import numpy as np
 from world import World
+from pprint import pprint
 
 class RLAgent:
     def __init__(self, world, theta, deterministic=True, gamma=0.95, start_state=(7,25)):
@@ -10,7 +11,7 @@ class RLAgent:
         self.__actions = ['north','east','south','west',
                           'north-east','south-east','south-west','north-west']
         self.__start_state = start_state
-        self.state_values = np.zeros((self.world.grid.shape[0], self.world.grid.shape[1]))
+        # self.state_values = np.zeros((self.world.grid.shape[0], self.world.grid.shape[1]))
         self.__env_probabilities = {
             'north': 1,
             'east': 1,
@@ -21,7 +22,7 @@ class RLAgent:
             'south-east': 1,
             'south-west': 1}
 
-        self.__policy, self.__state_values_dict = self.initialize()
+        self.__policy, self.__state_values = self.initialize()
 
     def run(self):
         pass
@@ -35,8 +36,8 @@ class RLAgent:
         return self.__theta
 
     @property
-    def state_values_dict(self):
-        return self.__state_values_dict
+    def state_values(self):
+        return self.__state_values
 
     @property
     def deterministic(self):
@@ -55,6 +56,10 @@ class RLAgent:
         self.__policy = new_policy
         pass
 
+    @state_values.setter
+    def state_values(self, new_state_values):
+        self.__state_values = new_state_values
+
     @property
     def env_probabilities(self):
         return self.__env_probabilities
@@ -69,7 +74,6 @@ class RLAgent:
         s_vals = {}
         it = np.nditer(self.world.grid, flags=['multi_index'])
         rows,cols = self.world.grid.shape
-
         # Set each State Value to 0
         # Set policy to map every state to all actions
         for state in it:
@@ -104,59 +108,54 @@ class RLAgent:
         Performs Value Iteration according to Sutton, p.83, Eq. 4.10
         :return:
         '''
-        it = np.nditer(self.state_values, flags=['multi_index'])
-        delta = 0
+        # it = np.nditer(self.state_values, flags=['multi_index'])
+        print(f'theta: {self.theta}')
 
-        while delta < self.theta:
-            print(f'Delta: {delta}')
-            Vs = 0
-            # Iterate through every state in state_values
-            for state in it:
+        # Iterate through every state in state_values
+        for i in range(0,500):
+            delta = 0.0
+            for key in self.state_values.keys():
+                state_idx = (key[0], key[1])
+                # print(f'state: {state_idx}')
+
+                v = self.state_values[state_idx]
                 s_primes_state_vals = {}
-                state_idx = (it.multi_index[0], it.multi_index[1])
-                print(f'state: {state_idx}')
-                print(f'State-Value Before Update: {self.state_values_dict[state_idx]}')
-                self.state_values_dict[state_idx] = Vs
-                print(f'State-Value After Update: {self.state_values_dict[state_idx]}')
 
                 # Get actions associated with policy for that state
                 state_actions = self.policy[state_idx]
 
                 # Map string actions to grid coordinates (dict keys)
                 coords = {
-                    'north': (it.multi_index[0]-1, it.multi_index[1]),
-                    'east': (it.multi_index[0], it.multi_index[1]+1),
-                    'south': (it.multi_index[0]+1, it.multi_index[1]),
-                    'west': (it.multi_index[0], it.multi_index[1]-1),
-                    'north-east': (it.multi_index[0]-1, it.multi_index[1]+1),
-                    'south-east': (it.multi_index[0]+1, it.multi_index[1]+1),
-                    'south-west': (it.multi_index[0]+1, it.multi_index[1]-1),
-                    'north-west': (it.multi_index[0]-1, it.multi_index[1]-1)
+                    'north': (key[0]-1, key[1]),
+                    'east': (key[0], key[1]+1),
+                    'south': (key[0]+1, key[1]),
+                    'west': (key[0], key[1]-1),
+                    'north-east': (key[0]-1, key[1]+1),
+                    'south-east': (key[0]+1, key[1]+1),
+                    'south-west': (key[0]+1, key[1]-1),
+                    'north-west': (key[0]-1, key[1]-1)
 
                 }
 
                 # Calculate Bellman Optimal State-Value Function
                 for action in state_actions:
                     immediate_reward = self.world.rewards[coords[action]]
-                    s_primes_state_vals[action] = self.env_probabilities[action] * (immediate_reward + self.gamma*self.state_values_dict[coords[action]])
+                    s_primes_state_vals[action] = self.env_probabilities[action] * (immediate_reward + self.gamma*self.state_values[coords[action]])
 
                 # Get Max of Bellman
-                # print(f's_prime: {s_primes_state_vals}')
-                Vs = max(s_primes_state_vals.values())
-
-                print(f'New State-Value: {Vs}')
-                # Use for policy update/improvement
-                # v = list(s_primes_state_vals.values())
-                # k = list(s_primes_state_vals.keys())
-                # action_max = k[v.index(max(v))]
-                # print(f'Take Action: {action_max}\n')
-            delta = max(delta, abs(self.state_values_dict[state_idx] - Vs))
-            print(f'delta inside: {delta}\n')
-
+                self.state_values[state_idx] = max(s_primes_state_vals.values())
+                diff = abs(v - self.state_values[state_idx])
+                delta = max(delta, diff)
+            # close state iteration
+            if delta < self.theta:
+                print(f'converged on iteration: {i}')
+                break
 
 if __name__ == '__main__':
     world = World()
     # world.show()
-    print(world.rewards)
-    agent = RLAgent(world, theta=0.05, gamma=0.95)
+    # print(world.rewards)
+    agent = RLAgent(world, theta=0.005, gamma=0.95)
     agent.value_iteration()
+    # world.show(agent.state_values)
+
