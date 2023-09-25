@@ -106,50 +106,52 @@ class RLAgent:
         '''
         it = np.nditer(self.state_values, flags=['multi_index'])
         delta = 0
-        # while delta < self.theta:
+
+        while delta < self.theta:
+            print(f'Delta: {delta}')
+            Vs = 0
             # Iterate through every state in state_values
-        Vs = 0
-        for state in it:
-            s_primes_state_vals = {}
-            state_idx = (it.multi_index[0], it.multi_index[1])
-            # v = self.state_values_dict[state_idx]
-            # print(f'v: {v}')
-            print(f'state: {state_idx}')
-            print(f'Vs: {Vs}')
-            print(f'v: {self.state_values_dict[state_idx]}')
-            self.state_values_dict[state_idx] = Vs
+            for state in it:
+                s_primes_state_vals = {}
+                state_idx = (it.multi_index[0], it.multi_index[1])
+                print(f'state: {state_idx}')
+                print(f'State-Value Before Update: {self.state_values_dict[state_idx]}')
+                self.state_values_dict[state_idx] = Vs
+                print(f'State-Value After Update: {self.state_values_dict[state_idx]}')
 
-            # Get actions associated with policy for that state
-            state_actions = self.policy[state_idx]
+                # Get actions associated with policy for that state
+                state_actions = self.policy[state_idx]
 
-            # Map string actions to grid coordinates (dict keys)
-            coords = {
-                'north': (it.multi_index[0]-1, it.multi_index[1]),
-                'east': (it.multi_index[0], it.multi_index[1]+1),
-                'south': (it.multi_index[0]+1, it.multi_index[1]),
-                'west': (it.multi_index[0], it.multi_index[1]-1),
-                'north-east': (it.multi_index[0]-1, it.multi_index[1]+1),
-                'south-east': (it.multi_index[0]+1, it.multi_index[1]+1),
-                'south-west': (it.multi_index[0]+1, it.multi_index[1]-1),
-                'north-west': (it.multi_index[0]-1, it.multi_index[1]-1)
+                # Map string actions to grid coordinates (dict keys)
+                coords = {
+                    'north': (it.multi_index[0]-1, it.multi_index[1]),
+                    'east': (it.multi_index[0], it.multi_index[1]+1),
+                    'south': (it.multi_index[0]+1, it.multi_index[1]),
+                    'west': (it.multi_index[0], it.multi_index[1]-1),
+                    'north-east': (it.multi_index[0]-1, it.multi_index[1]+1),
+                    'south-east': (it.multi_index[0]+1, it.multi_index[1]+1),
+                    'south-west': (it.multi_index[0]+1, it.multi_index[1]-1),
+                    'north-west': (it.multi_index[0]-1, it.multi_index[1]-1)
 
-            }
+                }
 
-            # Calculate Bellman Optimal State-Value Function
-            for action in state_actions:
-                immediate_reward = self.world.rewards[coords[action]]
-                s_primes_state_vals[action] = self.env_probabilities[action] * (immediate_reward + self.gamma*self.state_values_dict[coords[action]])
+                # Calculate Bellman Optimal State-Value Function
+                for action in state_actions:
+                    immediate_reward = self.world.rewards[coords[action]]
+                    s_primes_state_vals[action] = self.env_probabilities[action] * (immediate_reward + self.gamma*self.state_values_dict[coords[action]])
 
-            # Get Max of Bellman
-            print(f's_prime: {s_primes_state_vals}')
-            Vs = max(s_primes_state_vals.values())
-            # Use for policy update/improvement
-            # v = list(s_primes_state_vals.values())
-            # k = list(s_primes_state_vals.keys())
-            # action_max = k[v.index(max(v))]
-            # print(f'Take Action: {action_max}\n')
+                # Get Max of Bellman
+                # print(f's_prime: {s_primes_state_vals}')
+                Vs = max(s_primes_state_vals.values())
+
+                print(f'New State-Value: {Vs}')
+                # Use for policy update/improvement
+                # v = list(s_primes_state_vals.values())
+                # k = list(s_primes_state_vals.keys())
+                # action_max = k[v.index(max(v))]
+                # print(f'Take Action: {action_max}\n')
             delta = max(delta, abs(self.state_values_dict[state_idx] - Vs))
-            print(f'delta: {delta}\n')
+            print(f'delta inside: {delta}\n')
 
 
 if __name__ == '__main__':
