@@ -2,14 +2,14 @@ import numpy as np
 from world import World
 
 class RLAgent:
-    def __init__(self, world, gamma=0.95, start_state=(7,25)):
+    def __init__(self, world, theta, deterministic=True, gamma=0.95, start_state=(7,25)):
+        self.world = world
+        self.__theta = theta
         self.__gamma = gamma
         self.__deterministic = True
         self.__actions = ['north','east','south','west',
                           'north-east','south-east','south-west','north-west']
         self.__start_state = start_state
-        self.__delta = 0
-        self.world = world
         self.state_values = np.zeros((self.world.grid.shape[0], self.world.grid.shape[1]))
         self.__env_probabilities = {
             'north': 1,
@@ -29,6 +29,10 @@ class RLAgent:
     @property
     def gamma(self):
         return self.__gamma
+
+    @property
+    def theta(self):
+        return self.__theta
 
     @property
     def state_values_dict(self):
@@ -101,16 +105,19 @@ class RLAgent:
         :return:
         '''
         it = np.nditer(self.state_values, flags=['multi_index'])
-        next_state_val = 0
-        future_rewards = {}
-
-        # Iterate through every state in state_values
+        delta = 0
+        # while delta < self.theta:
+            # Iterate through every state in state_values
+        Vs = 0
         for state in it:
             s_primes_state_vals = {}
             state_idx = (it.multi_index[0], it.multi_index[1])
+            # v = self.state_values_dict[state_idx]
+            # print(f'v: {v}')
             print(f'state: {state_idx}')
-            # Variables we need to solve Bellman Optimal Value Equation:
-            curr_state_val = next_state_val
+            print(f'Vs: {Vs}')
+            print(f'v: {self.state_values_dict[state_idx]}')
+            self.state_values_dict[state_idx] = Vs
 
             # Get actions associated with policy for that state
             state_actions = self.policy[state_idx]
@@ -128,25 +135,26 @@ class RLAgent:
 
             }
 
-            # Get s' value and reward
-            sum = 0
+            # Calculate Bellman Optimal State-Value Function
             for action in state_actions:
-                # Sum up r+gamma*V(s')
-                # sum += 1*(immediate_reward[state_idx] + self.gamma*self.state_values_dict[action])
                 immediate_reward = self.world.rewards[coords[action]]
-                print(f'action: {action}, reward: {immediate_reward}')
                 s_primes_state_vals[action] = self.env_probabilities[action] * (immediate_reward + self.gamma*self.state_values_dict[coords[action]])
 
-            # Calculate next_state_value
-            print(f's_prime: {s_primes_state_vals}\n')
-            # next_state_val = self.reward + self.gamma*
-            # future_rewards[]
-
+            # Get Max of Bellman
+            print(f's_prime: {s_primes_state_vals}')
+            Vs = max(s_primes_state_vals.values())
+            # Use for policy update/improvement
+            # v = list(s_primes_state_vals.values())
+            # k = list(s_primes_state_vals.keys())
+            # action_max = k[v.index(max(v))]
+            # print(f'Take Action: {action_max}\n')
+            delta = max(delta, abs(self.state_values_dict[state_idx] - Vs))
+            print(f'delta: {delta}\n')
 
 
 if __name__ == '__main__':
     world = World()
     # world.show()
     print(world.rewards)
-    agent = RLAgent(world)
+    agent = RLAgent(world, theta=0.05, gamma=0.95)
     agent.value_iteration()
