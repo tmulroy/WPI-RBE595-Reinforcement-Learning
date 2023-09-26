@@ -145,7 +145,8 @@ class RLAgent:
                 break
 
     def set_optimal_policy(self):
-        # REFACTOR: abstrac to a MDP class
+        # REFACTOR: abstract to a MDP class
+        # REFACTOR: account for multiple actions that are max
         for key in self.state_values.keys():
             state_actions = self.policy[key]
             # Get actions associated with policy for that state
@@ -185,5 +186,7 @@ if __name__ == '__main__':
     print(agent.state_values)
     print(f'optimal policy')
     print(agent.policy)
-    # world.show(agent.state_values)
+    # world.show(agent.state_values, title='State Values Heatmap')
+    # world.show_rewards()
+    world.show_optimal_policy(agent.policy)
 

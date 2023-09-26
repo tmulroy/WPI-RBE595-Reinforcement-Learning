@@ -22,6 +22,7 @@ class World:
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]])
 
         self.__goal = goal
+        self.__grid_dict = self.convert_ndarray_to_dict(self.__grid)
         # Rewards as a numpy.ndarray()
         rewards_arr = np.array([-1.0 if state == 0 else -50.0 for row in self.__grid for state in row])
         rewards_arr = np.reshape(rewards_arr, (15,51))
@@ -64,15 +65,19 @@ class World:
     def state_values(self):
         return self.__state_values
 
+    @property
+    def grid_dict(self):
+        return self.__grid_dict
+
     @state_values.setter
     def state_values(self, new_state_values):
         self.__state_values = new_state_values
 
-    def show(self, values):
+    def show(self, values, title):
         if type(values) == dict:
             values = self.convert_dict_to_arr(values)
-        fig, ax = plt.subplots()
-        ax.set_title('World')
+        fig,ax = plt.subplots()
+        ax.set_title(title)
         plt.tick_params(left=False, right=False, labelleft=False,
                         labelbottom=False, bottom=False)
         im = ax.imshow(values)
@@ -84,15 +89,46 @@ class World:
             values_arr[key[0], key[1]] = x[key]
         return values_arr
 
+    def convert_ndarray_to_dict(self, arr):
+        d = {}
+        for y in range(0, arr.shape[0]):
+            for x in range(0, arr.shape[1]):
+                d[(y,x)] = arr[y,x]
+        return d
 
-    def show_rewards_arr(self):
+
+    def show_optimal_policy(self, policy):
+        # REFACTOR: don't plot policy for obstacle
+        fig, ax = plt.subplots()
+        plt.tick_params(left=False, right=False, labelleft=False,
+                        labelbottom=False, bottom=False)
+        im = ax.imshow(self.convert_dict_to_arr(self.rewards))
+        ax.set_title('Optimal Policy')
+        for state,action in policy.items():
+            if self.grid_dict[state] == 0:
+                if action == 'north':
+                    plt.arrow(state[1], state[0], 0, -0.35, head_width=0.1)
+                elif action == 'east':
+                    plt.arrow(state[1], state[0], 0.35, 0, head_width=0.1)
+                elif action == 'south':
+                    plt.arrow(state[1], state[0], 0, 0.35, head_width=0.1)
+                elif action == 'west':
+                    plt.arrow(state[1], state[0], -0.35, 0, head_width=0.1)
+                elif action == 'north-east':
+                    plt.arrow(state[1], state[0], 0.35, -0.35, head_width=0.1)
+                else:
+                    plt.arrow(state[1], state[0], 0, 0.35, head_width=0.1)
+        plt.show()
+
+    def show_rewards(self):
+        # rewards = self.convert_dict_to_arr(self.rewards)
         fig, ax = plt.subplots()
         ax.set_title('Rewards')
         plt.tick_params(left=False, right=False, labelleft=False,
                         labelbottom=False, bottom=False)
-        im = ax.imshow(self.rewards_arr)
-        it = np.nditer(self.rewards_arr, flags=['multi_index'])
-        for reward in it:
-            text = ax.text(it.multi_index[1], it.multi_index[0], reward, color='w', fontsize='xx-small')
-        plt.show(block=False)
+        im = ax.imshow(self.convert_dict_to_arr(self.rewards))
+        for key in self.rewards.keys():
+            text = ax.text(key[1], key[0], self.rewards[key], color='w', fontsize='xx-small')
+            # plt.arrow(key[1], key[0], 0, -0.4, head_width=0.1)
+        plt.show()
 
