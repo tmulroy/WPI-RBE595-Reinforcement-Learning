@@ -108,21 +108,15 @@ class RLAgent:
         Performs Value Iteration according to Sutton, p.83, Eq. 4.10
         :return:
         '''
-        # it = np.nditer(self.state_values, flags=['multi_index'])
-        print(f'theta: {self.theta}')
-
         # Iterate through every state in state_values
         for i in range(0,500):
             delta = 0.0
             for key in self.state_values.keys():
-                state_idx = (key[0], key[1])
-                # print(f'state: {state_idx}')
-
-                v = self.state_values[state_idx]
+                v = self.state_values[key]
                 s_primes_state_vals = {}
 
                 # Get actions associated with policy for that state
-                state_actions = self.policy[state_idx]
+                state_actions = self.policy[key]
 
                 # Map string actions to grid coordinates (dict keys)
                 coords = {
@@ -143,13 +137,42 @@ class RLAgent:
                     s_primes_state_vals[action] = self.env_probabilities[action] * (immediate_reward + self.gamma*self.state_values[coords[action]])
 
                 # Get Max of Bellman
-                self.state_values[state_idx] = max(s_primes_state_vals.values())
-                diff = abs(v - self.state_values[state_idx])
+                self.state_values[key] = max(s_primes_state_vals.values())
+                diff = abs(v - self.state_values[key])
                 delta = max(delta, diff)
-            # close state iteration
             if delta < self.theta:
                 print(f'converged on iteration: {i}')
                 break
+
+    def set_optimal_policy(self):
+        # REFACTOR: abstrac to a MDP class
+        for key in self.state_values.keys():
+            state_actions = self.policy[key]
+            # Get actions associated with policy for that state
+            state_actions = self.policy[key]
+            s_primes_state_vals = {}
+            # Map string actions to grid coordinates (dict keys)
+            coords = {
+                'north': (key[0] - 1, key[1]),
+                'east': (key[0], key[1] + 1),
+                'south': (key[0] + 1, key[1]),
+                'west': (key[0], key[1] - 1),
+                'north-east': (key[0] - 1, key[1] + 1),
+                'south-east': (key[0] + 1, key[1] + 1),
+                'south-west': (key[0] + 1, key[1] - 1),
+                'north-west': (key[0] - 1, key[1] - 1)
+
+            }
+
+            # Calculate Bellman Optimal State-Value Function
+            for action in state_actions:
+                immediate_reward = self.world.rewards[coords[action]]
+                s_primes_state_vals[action] = self.env_probabilities[action] * (immediate_reward + self.gamma * self.state_values[coords[action]])
+            v = list(s_primes_state_vals.values())
+            k = list(s_primes_state_vals.keys())
+            # REFACTOR: need to account for multiple maximums !!!
+            optimal_action = k[v.index(max(v))]
+            self.policy[key] = optimal_action
 
 if __name__ == '__main__':
     world = World()
@@ -157,5 +180,10 @@ if __name__ == '__main__':
     # print(world.rewards)
     agent = RLAgent(world, theta=0.005, gamma=0.95)
     agent.value_iteration()
+    agent.set_optimal_policy()
+    print(f'state values: ')
+    print(agent.state_values)
+    print(f'optimal policy')
+    print(agent.policy)
     # world.show(agent.state_values)
 

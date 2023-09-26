@@ -69,19 +69,21 @@ class World:
         self.__state_values = new_state_values
 
     def show(self, values):
+        if type(values) == dict:
+            values = self.convert_dict_to_arr(values)
         fig, ax = plt.subplots()
         ax.set_title('World')
         plt.tick_params(left=False, right=False, labelleft=False,
                         labelbottom=False, bottom=False)
         im = ax.imshow(values)
-        plt.show(block=False)
+        plt.show()
 
     def convert_dict_to_arr(self, x):
-        # for key,value in x:
-        pass
+        values_arr = np.empty((self.grid.shape[0], self.grid.shape[1]))
+        for key in x.keys():
+            values_arr[key[0], key[1]] = x[key]
+        return values_arr
 
-
-    # def show_values(self):
 
     def show_rewards_arr(self):
         fig, ax = plt.subplots()
