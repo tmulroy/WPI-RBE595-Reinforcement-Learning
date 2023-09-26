@@ -102,7 +102,7 @@ class World:
         fig, ax = plt.subplots()
         plt.tick_params(left=False, right=False, labelleft=False,
                         labelbottom=False, bottom=False)
-        im = ax.imshow(self.convert_dict_to_arr(self.rewards))
+        im = ax.imshow(self.convert_dict_to_arr(self.rewards), cmap='Greys')
         ax.set_title('Optimal Policy')
         for state,action in policy.items():
             if self.grid_dict[state] == 0:
@@ -116,6 +116,12 @@ class World:
                     plt.arrow(state[1], state[0], -0.35, 0, head_width=0.1)
                 elif action == 'north-east':
                     plt.arrow(state[1], state[0], 0.35, -0.35, head_width=0.1)
+                elif action == 'north-west':
+                    plt.arrow(state[1], state[0], -0.35, -0.35, head_width=0.1)
+                elif action == 'south-east':
+                    plt.arrow(state[1], state[0], 0.35, 0.35, head_width=0.1)
+                elif action == 'south-west':
+                    plt.arrow(state[1], state[0], -0.35, 0.35, head_width=0.1)
                 else:
                     plt.arrow(state[1], state[0], 0, 0.35, head_width=0.1)
         plt.show()

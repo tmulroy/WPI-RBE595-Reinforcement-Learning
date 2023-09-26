@@ -1,6 +1,6 @@
 import numpy as np
 from world import World
-from pprint import pprint
+
 
 class RLAgent:
     def __init__(self, world, theta, deterministic=True, gamma=0.95, start_state=(7,25)):
@@ -11,7 +11,6 @@ class RLAgent:
         self.__actions = ['north','east','south','west',
                           'north-east','south-east','south-west','north-west']
         self.__start_state = start_state
-        # self.state_values = np.zeros((self.world.grid.shape[0], self.world.grid.shape[1]))
         self.__env_probabilities = {
             'north': 1,
             'east': 1,
@@ -172,8 +171,9 @@ class RLAgent:
             v = list(s_primes_state_vals.values())
             k = list(s_primes_state_vals.keys())
             # REFACTOR: need to account for multiple maximums !!!
-            optimal_action = k[v.index(max(v))]
-            self.policy[key] = optimal_action
+            greedy_action = k[v.index(max(v))]
+            self.policy[key] = greedy_action
+
 
 if __name__ == '__main__':
     world = World()
