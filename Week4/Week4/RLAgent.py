@@ -102,16 +102,74 @@ class RLAgent:
 
         return policy,s_vals
 
+    def policy_iteration(self):
+        '''
+        Performs Policy Iteration according to Sutton, p.80, Eq.
+        :return:
+        '''
+        # Iterate through every state in state_values
+        self.policy_evaluation(self.policy, self.state_values)
+        # self.policy_improvement()
+
+    def policy_evaluation(self, policy, state_values):
+        # for i in range(0, 500):
+        delta = 0.0
+        current_state = state_values.copy()
+        # for i in range(0,1):
+        for state_idx, state_value in current_state.items():
+            # print(f'i: {i}')
+            print(f'state: {state_idx}')
+            print(f'  value: {state_value}')
+            state_actions = policy[state_idx]
+            print(f'  state_actions: {state_actions}')
+            neighbor_coords = {
+                        'north': (state_idx[0] - 1, state_idx[1]),
+                        'east': (state_idx[0], state_idx[1] + 1),
+                        'south': (state_idx[0] + 1, state_idx[1]),
+                        'west': (state_idx[0], state_idx[1] - 1),
+                        'north-east': (state_idx[0] - 1, state_idx[1] + 1),
+                        'south-east': (state_idx[0] + 1, state_idx[1] + 1),
+                        'south-west': (state_idx[0] + 1, state_idx[1] - 1),
+                        'north-west': (state_idx[0] - 1, state_idx[1] - 1)
+                    }
+            
+            probabilistic_sum = 0
+            for action in state_actions:
+                print(f'    action: {action}')
+                immediate_reward = self.world.rewards[neighbor_coords[action]]
+                discounted_future_reward = self.gamma*current_state[neighbor_coords[action]]
+                print(f'       immediate reward: {immediate_reward}')
+                print(f'       discounted future reward: {discounted_future_reward}')
+                probabilistic_sum += self.env_probabilities[action]*(immediate_reward + discounted_future_reward)
+                print(f'       probabilistic_sum: {probabilistic_sum}')
+
+            state_values[state_idx] = probabilistic_sum
+                # diff = abs(current_state[state_idx] - probabilistic_sum)
+                # print(f'current_state[state_idx]: {current_state[state_idx]}')
+                # print(f'diff: {diff}')
+                # delta = max(delta, diff)
+                # print(f'delta: {delta}')
+                #     current_state[state_idx] = probabilistic_sum
+                # if delta < self.theta:
+                #     print(f'Policy Iteration Converged on Iteration #{i}')
+                #     break
+
+
     def value_iteration(self):
         '''
         Performs Value Iteration according to Sutton, p.83, Eq. 4.10
         :return:
         '''
+        self.state_values = self.bellman_optimal_state_value_solver()
+        self.set_optimal_policy()
+
+    def bellman_optimal_state_value_solver(self):
+        temp_state_values = self.state_values
         # Iterate through every state in state_values
-        for i in range(0,500):
+        for i in range(0, 500):
             delta = 0.0
-            for key in self.state_values.keys():
-                v = self.state_values[key]
+            for key in temp_state_values.keys():
+                v = temp_state_values[key]
                 s_primes_state_vals = {}
 
                 # Get actions associated with policy for that state
@@ -119,29 +177,31 @@ class RLAgent:
 
                 # Map string actions to grid coordinates (dict keys)
                 coords = {
-                    'north': (key[0]-1, key[1]),
-                    'east': (key[0], key[1]+1),
-                    'south': (key[0]+1, key[1]),
-                    'west': (key[0], key[1]-1),
-                    'north-east': (key[0]-1, key[1]+1),
-                    'south-east': (key[0]+1, key[1]+1),
-                    'south-west': (key[0]+1, key[1]-1),
-                    'north-west': (key[0]-1, key[1]-1)
+                    'north': (key[0] - 1, key[1]),
+                    'east': (key[0], key[1] + 1),
+                    'south': (key[0] + 1, key[1]),
+                    'west': (key[0], key[1] - 1),
+                    'north-east': (key[0] - 1, key[1] + 1),
+                    'south-east': (key[0] + 1, key[1] + 1),
+                    'south-west': (key[0] + 1, key[1] - 1),
+                    'north-west': (key[0] - 1, key[1] - 1)
 
                 }
 
                 # Calculate Bellman Optimal State-Value Function
                 for action in state_actions:
                     immediate_reward = self.world.rewards[coords[action]]
-                    s_primes_state_vals[action] = self.env_probabilities[action] * (immediate_reward + self.gamma*self.state_values[coords[action]])
+                    s_primes_state_vals[action] = self.env_probabilities[action] * (
+                                immediate_reward + self.gamma * temp_state_values[coords[action]])
 
                 # Get Max of Bellman
-                self.state_values[key] = max(s_primes_state_vals.values())
-                diff = abs(v - self.state_values[key])
+                temp_state_values[key] = max(s_primes_state_vals.values())
+                diff = abs(v - temp_state_values[key])
                 delta = max(delta, diff)
             if delta < self.theta:
                 print(f'converged on iteration: {i}')
                 break
+        return temp_state_values
 
     def set_optimal_policy(self):
         # REFACTOR: abstract to a MDP class
@@ -149,7 +209,6 @@ class RLAgent:
         for key in self.state_values.keys():
             state_actions = self.policy[key]
             # Get actions associated with policy for that state
-            state_actions = self.policy[key]
             s_primes_state_vals = {}
             # Map string actions to grid coordinates (dict keys)
             coords = {
@@ -177,16 +236,13 @@ class RLAgent:
 
 if __name__ == '__main__':
     world = World()
-    # world.show()
-    # print(world.rewards)
     agent = RLAgent(world, theta=0.005, gamma=0.95)
-    agent.value_iteration()
-    agent.set_optimal_policy()
-    print(f'state values: ')
-    print(agent.state_values)
-    print(f'optimal policy')
-    print(agent.policy)
-    # world.show(agent.state_values, title='State Values Heatmap')
+    # agent.value_iteration()
+    # world.show_optimal_policy(agent.policy, title='Value Iteration')
     # world.show_rewards()
-    world.show_optimal_policy(agent.policy)
+    # Policy Iteration
+    # agent.policy, agent.state_values = agent.initialize()
+    agent.policy_iteration()
+    # print(f'agent.state_values: {agent.state_values}')
+    # print(f'agent.policy: {agent.policy}')
 

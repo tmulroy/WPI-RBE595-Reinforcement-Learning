@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 class World:
-    def __init__(self, goal=(7,10)):
+    def __init__(self, goal=(7, 10)):
         self.__grid = np.array([
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
@@ -97,13 +97,13 @@ class World:
         return d
 
 
-    def show_optimal_policy(self, policy):
+    def show_optimal_policy(self, policy, title):
         # REFACTOR: don't plot policy for obstacle
         fig, ax = plt.subplots()
         plt.tick_params(left=False, right=False, labelleft=False,
                         labelbottom=False, bottom=False)
         im = ax.imshow(self.convert_dict_to_arr(self.rewards), cmap='Greys')
-        ax.set_title('Optimal Policy')
+        ax.set_title(f'{title} Optimal Policy')
         for state,action in policy.items():
             if self.grid_dict[state] == 0:
                 if action == 'north':
@@ -135,6 +135,5 @@ class World:
         im = ax.imshow(self.convert_dict_to_arr(self.rewards))
         for key in self.rewards.keys():
             text = ax.text(key[1], key[0], self.rewards[key], color='w', fontsize='xx-small')
-            # plt.arrow(key[1], key[0], 0, -0.4, head_width=0.1)
         plt.show()
 
