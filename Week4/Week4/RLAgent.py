@@ -1,4 +1,7 @@
+import math
+
 import numpy as np
+import random
 from world import World
 
 
@@ -7,6 +10,7 @@ class RLAgent:
         self.world = world
         self.__theta = theta
         self.__gamma = gamma
+        self.__max_iterations = 250
         self.__deterministic = True
         self.__actions = ['north','east','south','west',
                           'north-east','south-east','south-west','north-west']
@@ -21,11 +25,15 @@ class RLAgent:
             'south-east': 1,
             'south-west': 1}
 
-        self.__policy, self.__state_values = self.initialize()
+        self.__policy, self.__state_values, self.__action_probabilities = self.initialize()
 
-    def run(self):
-        pass
+    @property
+    def max_iterations(self):
+        return self.__max_iterations
 
+    @property
+    def action_probabilities(self):
+        return self.__action_probabilities
     @property
     def gamma(self):
         return self.__gamma
@@ -100,22 +108,80 @@ class RLAgent:
         policy[(rows-1, 0)] = ['north','north-east','east']  # Bottom Left
         policy[(rows-1, cols-1)] = ['north','west','north-west']  # Bottom Right
 
-        return policy,s_vals
+        # Generate Action Probabilities
+        action_probabilities = {}
+        for s_idx, s in enumerate(s_vals):
+            action_probabilities[s] = {}
+            for action_idx, action in enumerate(policy[s]):
+                action_probabilities[s][action] = 1/len(policy[s])
+        return policy,s_vals,action_probabilities
 
     def policy_iteration(self):
         '''
         Performs Policy Iteration according to Sutton, p.80, Eq.
         :return:
         '''
-        # Iterate through every state in state_values
-        self.policy_evaluation(self.policy, self.state_values)
-        # self.policy_improvement()
+        state_values = self.state_values
+        policy = self.policy
+        count = 0
+        while True:
+            count += 1
+            V = self.policy_evaluation(policy, state_values)
+            policy, policy_stable = self.policy_improvement(policy, V)
+            # Need to update action probabilities with new policy...
+            print(f'count: {count}')
+            if policy_stable:
+                break
 
-    def policy_evaluation(self, policy, state_values):
-        delta = 0.0
+
+    def policy_improvement(self, old_policy, state_values):
         V = state_values.copy()
-        diffs = []
-        for i in range(0, 1000):
+        policy = old_policy.copy()
+        policy_stable = True
+        for s_idx, s in enumerate(V):
+            available_actions = []
+            if type(policy[s]) == str:
+                available_actions.append(policy[s])
+                old_action = policy[s]
+            else:
+                available_actions = policy[s]
+                old_action = random.choice(available_actions)
+            v = 0
+            neighbor_coords = {
+                'north': (s[0] - 1, s[1]),
+                'east': (s[0], s[1] + 1),
+                'south': (s[0] + 1, s[1]),
+                'west': (s[0], s[1] - 1),
+                'north-east': (s[0] - 1, s[1] + 1),
+                'south-east': (s[0] + 1, s[1] + 1),
+                'south-west': (s[0] + 1, s[1] - 1),
+                'north-west': (s[0] - 1, s[1] - 1)
+            }
+
+            next_actions = {}
+            for action in available_actions:
+                immediate_reward = self.world.rewards[neighbor_coords[action]]
+                discounted_future_reward = self.gamma * state_values[neighbor_coords[action]]
+                prob = 1/len(available_actions)
+                reward = world.rewards[s]
+                next_state = neighbor_coords[action]
+                next_actions[action] = prob*(immediate_reward + discounted_future_reward)
+
+            val = list(next_actions.values())
+            k = list(next_actions.keys())
+            # REFACTOR: need to account for multiple maximums !!!
+            greedy_action = k[val.index(max(val))]
+            policy[s] = [greedy_action]
+            if old_action != policy[s]:
+                policy_stable = False
+        return policy, policy_stable
+
+
+    def policy_evaluation(self, old_policy, state_values):
+        V = state_values.copy()
+        policy = old_policy.copy()
+        for i in range(0, self.max_iterations):
+            delta = 0.0
             for s_idx, s in enumerate(V):
                 v = 0
                 neighbor_coords = {
@@ -129,47 +195,19 @@ class RLAgent:
                     'north-west': (s[0] - 1, s[1] - 1)
                 }
                 for action in policy[s]:
-                    prob = self.env_probabilities[action]
+                    env_prob = self.env_probabilities[action]
+                    action_prob = 1/len(policy[s])
                     reward = world.rewards[s]
                     next_state = neighbor_coords[action]
-                    v += (1/8) * prob * (reward + self.gamma * V[next_state])
-                diff = abs(v - V[s])
-                diffs.append(diff)
-                # print(f'iteration: {i}')
-                # print(f'  state({s})')
-                # print(f'  diff: {diff}')
+                    # Need to change action_probabilities based on number of actions available..
+                    v += action_prob * env_prob*(reward + self.gamma * V[next_state])
                 delta = max(delta, abs(v - V[s]))
                 V[s] = v
-            # print(f'delta: {delta}')
             if delta < self.theta:
-                print(f'delta less than theta')
-                print(f'converged on iteration #{i}')
+                print(f'===================policy evaluation converged on iteration #{i}===================')
                 break
-        print(f'max of diffs: {max(diffs)}')
         return V
 
-    def mdp_solver(self, policy, state_values):
-        next_state_values = state_values.copy()
-        for state_idx, state_value in state_values.items():
-            state_actions = policy[state_idx]
-            neighbor_coords = {
-                'north': (state_idx[0] - 1, state_idx[1]),
-                'east': (state_idx[0], state_idx[1] + 1),
-                'south': (state_idx[0] + 1, state_idx[1]),
-                'west': (state_idx[0], state_idx[1] - 1),
-                'north-east': (state_idx[0] - 1, state_idx[1] + 1),
-                'south-east': (state_idx[0] + 1, state_idx[1] + 1),
-                'south-west': (state_idx[0] + 1, state_idx[1] - 1),
-                'north-west': (state_idx[0] - 1, state_idx[1] - 1)
-            }
-
-            probabilistic_sum = 0
-            for action in state_actions:
-                immediate_reward = self.world.rewards[neighbor_coords[action]]
-                discounted_future_reward = self.gamma * state_values[neighbor_coords[action]]
-                probabilistic_sum += self.env_probabilities[action] * (immediate_reward + discounted_future_reward)
-            next_state_values[state_idx] = probabilistic_sum
-        return next_state_values
 
     def value_iteration(self):
         '''
@@ -254,11 +292,11 @@ if __name__ == '__main__':
     world = World()
     agent = RLAgent(world, theta=0.005, gamma=0.95)
     # agent.value_iteration()
-    # world.show_optimal_policy(agent.policy, title='Value Iteration')
     # world.show_rewards()
     # Policy Iteration
     # agent.policy, agent.state_values = agent.initialize()
     agent.policy_iteration()
+    # world.show_optimal_policy(agent.policy, title='Value Iteration')
     # print(f'agent.state_values: {agent.state_values}')
     # print(f'agent.policy: {agent.policy}')
 
