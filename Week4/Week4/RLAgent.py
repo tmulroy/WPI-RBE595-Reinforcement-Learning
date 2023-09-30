@@ -116,6 +116,49 @@ class RLAgent:
                 action_probabilities[s][action] = 1/len(policy[s])
         return policy,s_vals,action_probabilities
 
+    def generalized_policy_iteration(self):
+        # evaluate
+        V = self.state_values.copy()
+        policy = self.policy.copy()
+        print(f'state values before: {V}')
+        policy_stable = False
+        value_function_stable = False
+        for i in range(0, 2):
+            for s_idx, s in enumerate(V):
+                v = 0
+                neighbor_coords = {
+                    'north': (s[0] - 1, s[1]),
+                    'east': (s[0], s[1] + 1),
+                    'south': (s[0] + 1, s[1]),
+                    'west': (s[0], s[1] - 1),
+                    'north-east': (s[0] - 1, s[1] + 1),
+                    'south-east': (s[0] + 1, s[1] + 1),
+                    'south-west': (s[0] + 1, s[1] - 1),
+                    'north-west': (s[0] - 1, s[1] - 1)
+                }
+                for action in policy[s]:
+                    env_prob = self.env_probabilities[action]
+                    action_prob = 1/len(policy[s])
+                    reward = world.rewards[s]
+                    next_state = neighbor_coords[action]
+                    # Need to change action_probabilities based on number of actions available..
+                    v += action_prob * env_prob*(reward + self.gamma * V[next_state])
+                V[s] = v
+            print(f'state values after: {V}')
+
+            # improve
+            previous_policy = policy.copy()
+            print(f'old policy: {policy}')
+            new_policy, policy_stable = self.policy_improvement(policy, V)
+            print(f'new policy: {new_policy}')
+            print(f'policy stable: {policy_stable}')
+
+            if (policy_stable and value_function_stable):
+                break
+            else:
+                policy = new_policy
+
+
     def policy_iteration(self):
         '''
         Performs Policy Iteration according to Sutton, p.80, Eq.
@@ -124,14 +167,25 @@ class RLAgent:
         state_values = self.state_values
         policy = self.policy
         count = 0
-        while True:
-            count += 1
-            V = self.policy_evaluation(policy, state_values)
-            policy, policy_stable = self.policy_improvement(policy, V)
-            # Need to update action probabilities with new policy...
+        for i in range(0, self.max_iterations):
             print(f'count: {count}')
+            count += 1
+            # print(f'old state vals: {state_values}')
+            new_state_values = self.policy_evaluation(policy, state_values)
+            # print(f'new state vals: {new_state_values}')
+            # print(f'new state values same than old: {new_state_values == state_values}')
+            # print(f'old policy: {policy}')
+            new_policy, policy_stable = self.policy_improvement(policy, new_state_values)
+            # print(f'new policy: {new_policy}')
+            state_values = new_state_values.copy()
+            policy = new_policy.copy()
+            # print(f'old policy same as new policy?: {policy == new_policy}')
+            # print(f'policy stable: {policy_stable}')
+            # print(f'========================================================================\n')
             if policy_stable:
                 break
+        self.policy = policy
+        self.state_values = state_values
 
 
     def policy_improvement(self, old_policy, state_values):
@@ -140,12 +194,13 @@ class RLAgent:
         policy_stable = True
         for s_idx, s in enumerate(V):
             available_actions = []
+            old_actions = []
             if type(policy[s]) == str:
                 available_actions.append(policy[s])
-                old_action = policy[s]
+                old_action = [policy[s]]
             else:
                 available_actions = policy[s]
-                old_action = random.choice(available_actions)
+                old_action = [random.choice(available_actions)]
             v = 0
             neighbor_coords = {
                 'north': (s[0] - 1, s[1]),
@@ -204,7 +259,7 @@ class RLAgent:
                 delta = max(delta, abs(v - V[s]))
                 V[s] = v
             if delta < self.theta:
-                print(f'===================policy evaluation converged on iteration #{i}===================')
+                print(f'policy evaluation converged on iteration #{i}')
                 break
         return V
 
@@ -285,17 +340,23 @@ class RLAgent:
             k = list(s_primes_state_vals.keys())
             # REFACTOR: need to account for multiple maximums !!!
             greedy_action = k[v.index(max(v))]
-            self.policy[key] = greedy_action
+            self.policy[key] = [greedy_action]
 
 
 if __name__ == '__main__':
     world = World()
     agent = RLAgent(world, theta=0.005, gamma=0.95)
     # agent.value_iteration()
+    # agent.policy_iteration()
+    agent.generalized_policy_iteration()
+    # print(f'agent policy: {agent.policy}')
+    # world.show_optimal_policy(agent.policy, title='Policy Iteration')
+    # world.show(agent.state_values, title='Policy Iteration')
     # world.show_rewards()
     # Policy Iteration
     # agent.policy, agent.state_values = agent.initialize()
-    agent.policy_iteration()
+    # print(f'state values: {agent.state_values}')
+    # print(f'agent policy: {agent.policy}')
     # world.show_optimal_policy(agent.policy, title='Value Iteration')
     # print(f'agent.state_values: {agent.state_values}')
     # print(f'agent.policy: {agent.policy}')

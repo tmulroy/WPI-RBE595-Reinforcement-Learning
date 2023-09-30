@@ -104,7 +104,8 @@ class World:
                         labelbottom=False, bottom=False)
         im = ax.imshow(self.convert_dict_to_arr(self.rewards), cmap='Greys')
         ax.set_title(f'{title} Optimal Policy')
-        for state,action in policy.items():
+        for state, action in policy.items():
+            action = action[0]
             if self.grid_dict[state] == 0:
                 if action == 'north':
                     plt.arrow(state[1], state[0], 0, -0.35, head_width=0.1)
