@@ -112,48 +112,64 @@ class RLAgent:
         # self.policy_improvement()
 
     def policy_evaluation(self, policy, state_values):
-        # for i in range(0, 500):
         delta = 0.0
-        current_state = state_values.copy()
-        # for i in range(0,1):
-        for state_idx, state_value in current_state.items():
-            # print(f'i: {i}')
-            print(f'state: {state_idx}')
-            print(f'  value: {state_value}')
+        V = state_values.copy()
+        diffs = []
+        for i in range(0, 1000):
+            for s_idx, s in enumerate(V):
+                v = 0
+                neighbor_coords = {
+                    'north': (s[0] - 1, s[1]),
+                    'east': (s[0], s[1] + 1),
+                    'south': (s[0] + 1, s[1]),
+                    'west': (s[0], s[1] - 1),
+                    'north-east': (s[0] - 1, s[1] + 1),
+                    'south-east': (s[0] + 1, s[1] + 1),
+                    'south-west': (s[0] + 1, s[1] - 1),
+                    'north-west': (s[0] - 1, s[1] - 1)
+                }
+                for action in policy[s]:
+                    prob = self.env_probabilities[action]
+                    reward = world.rewards[s]
+                    next_state = neighbor_coords[action]
+                    v += (1/8) * prob * (reward + self.gamma * V[next_state])
+                diff = abs(v - V[s])
+                diffs.append(diff)
+                # print(f'iteration: {i}')
+                # print(f'  state({s})')
+                # print(f'  diff: {diff}')
+                delta = max(delta, abs(v - V[s]))
+                V[s] = v
+            # print(f'delta: {delta}')
+            if delta < self.theta:
+                print(f'delta less than theta')
+                print(f'converged on iteration #{i}')
+                break
+        print(f'max of diffs: {max(diffs)}')
+        return V
+
+    def mdp_solver(self, policy, state_values):
+        next_state_values = state_values.copy()
+        for state_idx, state_value in state_values.items():
             state_actions = policy[state_idx]
-            print(f'  state_actions: {state_actions}')
             neighbor_coords = {
-                        'north': (state_idx[0] - 1, state_idx[1]),
-                        'east': (state_idx[0], state_idx[1] + 1),
-                        'south': (state_idx[0] + 1, state_idx[1]),
-                        'west': (state_idx[0], state_idx[1] - 1),
-                        'north-east': (state_idx[0] - 1, state_idx[1] + 1),
-                        'south-east': (state_idx[0] + 1, state_idx[1] + 1),
-                        'south-west': (state_idx[0] + 1, state_idx[1] - 1),
-                        'north-west': (state_idx[0] - 1, state_idx[1] - 1)
-                    }
-            
+                'north': (state_idx[0] - 1, state_idx[1]),
+                'east': (state_idx[0], state_idx[1] + 1),
+                'south': (state_idx[0] + 1, state_idx[1]),
+                'west': (state_idx[0], state_idx[1] - 1),
+                'north-east': (state_idx[0] - 1, state_idx[1] + 1),
+                'south-east': (state_idx[0] + 1, state_idx[1] + 1),
+                'south-west': (state_idx[0] + 1, state_idx[1] - 1),
+                'north-west': (state_idx[0] - 1, state_idx[1] - 1)
+            }
+
             probabilistic_sum = 0
             for action in state_actions:
-                print(f'    action: {action}')
                 immediate_reward = self.world.rewards[neighbor_coords[action]]
-                discounted_future_reward = self.gamma*current_state[neighbor_coords[action]]
-                print(f'       immediate reward: {immediate_reward}')
-                print(f'       discounted future reward: {discounted_future_reward}')
-                probabilistic_sum += self.env_probabilities[action]*(immediate_reward + discounted_future_reward)
-                print(f'       probabilistic_sum: {probabilistic_sum}')
-
-            state_values[state_idx] = probabilistic_sum
-                # diff = abs(current_state[state_idx] - probabilistic_sum)
-                # print(f'current_state[state_idx]: {current_state[state_idx]}')
-                # print(f'diff: {diff}')
-                # delta = max(delta, diff)
-                # print(f'delta: {delta}')
-                #     current_state[state_idx] = probabilistic_sum
-                # if delta < self.theta:
-                #     print(f'Policy Iteration Converged on Iteration #{i}')
-                #     break
-
+                discounted_future_reward = self.gamma * state_values[neighbor_coords[action]]
+                probabilistic_sum += self.env_probabilities[action] * (immediate_reward + discounted_future_reward)
+            next_state_values[state_idx] = probabilistic_sum
+        return next_state_values
 
     def value_iteration(self):
         '''
