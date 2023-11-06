@@ -81,6 +81,10 @@ class World:
         plt.tick_params(left=False, right=False, labelleft=False,
                         labelbottom=False, bottom=False)
         im = ax.imshow(values)
+        for row_idx, row in enumerate(values):
+            print(f'row_idx: {row_idx}')
+            for col_idx, col in enumerate(row):
+                text = ax.text(col_idx, row_idx, col, color='w', fontsize='xx-small')
         plt.show()
 
     def convert_dict_to_arr(self, x):
